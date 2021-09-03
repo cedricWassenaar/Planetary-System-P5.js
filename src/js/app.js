@@ -18,7 +18,7 @@ function weightedRandom(min, max) {
   return (min - 1) + Math.round(max / (Math.random() * max + min));
 }
 
-const N_PARTICLES = 50;
+const N_PARTICLES = 100;
 const MAX_DISTANCE = 10000;
 const FORCE_DIST = 5000.0;
 const SPN_DIST = 2000.0;
@@ -34,7 +34,7 @@ class Particle {
     static id_count;
     // setting the co-ordinates, radius and the
     // speed of a particle in both the co-ordinates axes.
-    constructor(pos, vel, color, r = weightedRandom(2, 30)){
+    constructor(pos, vel, color, r = weightedRandom(1, 25)){
         this.position       = pos;
         this.velocity       = vel;
         this.acceleration   = new p5.Vector(0, 0, 0);
