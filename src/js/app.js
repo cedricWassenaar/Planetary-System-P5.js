@@ -6,19 +6,6 @@
  */
 p5.disableFriendlyErrors = true;
 
-function RGBA(r, g, b, a) {
-    let str = 'rgba(';
-    str += r + ', ';
-    str += g + ', ';
-    str += b + ', ';
-    str += a + ')';
-    return str;
-}
-
-function weightedRandom(min, max) {
-  return (min - 1) + Math.round(max / (Math.random() * max + min));
-}
-
 const N_PARTICLES = 100;
 const MAX_DISTANCE = 10000;
 const FORCE_DIST = 5000.0;
@@ -27,9 +14,21 @@ const CON_DIST = 500.0;
 const G = 0.0667;
 const FOURTHIRDS = 4/3;
 const SPHERE_RATIO = FOURTHIRDS * Math.PI; 
-const TRAIL_LENGTH = 20;
-const FPTRAIL = 20;
+const TRAIL_LENGTH = 10;
 
+
+function RGBA(r, g, b, a) {
+    let str = 'rgba(';
+    str += r + ',';
+    str += g + ',';
+    str += b + ',';
+    str += a + ')';
+    return str;
+}
+
+function weightedRandom(min, max) {
+  return (min - 1) + Math.round(max / (Math.random() * max + min));
+}
 
 function line3D(vector1, vector2, color, width) {
     strokeWeight(width);
@@ -51,9 +50,9 @@ class Trail {
     drawTrail() {
         this.previous.set(this.position);
         for(let i = 0; i < this.trail.length; i++) {
-            this.strength = (this.trail.length - i) / this.trail.length;
+            this.strength = (this.trail.length - i + 5) / this.trail.length;
             this.current.set(this.trail[i]);
-            line3D(this.previous, this.current, RGBA(120, 120, 120, this.strength), this.width * this.strength);
+            line3D(this.previous, this.current, RGBA(80, 80, 255, this.strength), this.width * this.strength);
             this.previous.set(this.current);
         }
     }
@@ -65,6 +64,11 @@ class Trail {
         if (this.trail.length > TRAIL_LENGTH) {
             this.trail.pop();
         }
+    }
+
+    updateTrail() {
+        this.addTrail();
+        this.drawTrail();
     }
 }
 
@@ -78,11 +82,13 @@ class Particle {
         this.velocity       = vel;
         this.acceleration   = new p5.Vector();
         this.force          = new p5.Vector();
+        this.forceTemp      = new p5.Vector();
+        this.forceTemp.limit(10);
         this.radius         = r;
         this.mass           = SPHERE_RATIO * r * r * r;
         this.id             = this.id_count++;
         this.color          = color;
-        this.trail          = new Trail(this.position, this.radius);
+        this.trail          = new Trail(this.position, this.radius / 2);
     }
     
     // creation of a particle.
@@ -96,12 +102,9 @@ class Particle {
     }
     
     update(nr) {
-        if (nr % FPTRAIL){
-            this.trail.addTrail();
-        }
         this.moveParticle();
         this.drawParticle();
-        this.trail.drawTrail();
+        this.trail.updateTrail();
     }
     
     // setting the particle in motion.
@@ -127,15 +130,14 @@ class Particle {
             let dis = p5.Vector.dist(this.position, element.position);
             if(dis < FORCE_DIST) {
               if (dis < (this.radius + element.radius)) return;
-              let force = new p5.Vector();
-              force.limit(10);
-              force.add(this.position);
-              force.sub(element.position);
-              force.normalize();
+              this.forceTemp.set(0, 0, 0);
+              this.forceTemp.add(this.position);
+              this.forceTemp.sub(element.position);
+              this.forceTemp.normalize();
               let strength = ((G * this.mass * element.mass) / (dis * dis));
-              force.mult(strength);
+              this.forceTemp.mult(strength);
               // Apply pulling force off current object to other element
-              element.force.add(force);
+              element.force.add(this.forceTemp);
             }
         });
     }
@@ -255,6 +257,7 @@ function windowResized() {
 }
 
 function setup() {
+  colorMode(RGB);
   frameRate(30);
   let interval = 1 / frameRate();
   const renderer = createCanvas(windowWidth, windowHeight, WEBGL);
