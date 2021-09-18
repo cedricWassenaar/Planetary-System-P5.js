@@ -1,22 +1,27 @@
 /*
- * Original version:
  * @name Constellation
  * @description Creates a simple constellation
  * Inspired by Particle.js by Sagar Arora.
  */
 p5.disableFriendlyErrors = true;
 
-const N_PARTICLES = 100;
-const MAX_DISTANCE = 10000;
-const FORCE_DIST = 5000.0;
-const SPN_DIST = 2000.0;
-const CON_DIST = 500.0;
-const G = 0.0667;
-const FOURTHIRDS = 4/3;
-const SPHERE_RATIO = FOURTHIRDS * Math.PI; 
-const TRAIL_LENGTH = 10;
+
+// --- Constants --- 
+const N_PARTICLES   = 100;
+const MAX_DISTANCE  = 10000;
+const FORCE_DIST    = 5000.0;
+const SPN_DIST      = 5000.0;
+const G             = 0.667;
+const FOURTHIRDS    = 4/3;
+const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
+const TRAIL_LENGTH  = 10;
+const START_SPEED   = 5.0;
+const MIN_PLANET_RAD = 1;
+const MAX_PLANET_RAD = 10;
+const CAM_START_POS = -3000;
 
 
+// --- Functions --- 
 function RGBA(r, g, b, a) {
     let str = 'rgba(';
     str += r + ',';
@@ -37,47 +42,52 @@ function line3D(vector1, vector2, color, width) {
 }
 
 
+// --- Classes --- 
 class Trail {
     constructor(pos, width) {
         this.position   = pos;
+        this.width      = width;
         this.trail      = [];
         this.previous   = new p5.Vector();
         this.current    = new p5.Vector();
         this.strength;
-        this.width      = width;
+        this.index      = 0;
+        this.length     = TRAIL_LENGTH;
+        for(let i = 0; i < this.length; i++) {
+            this.trail.push(new p5.Vector().set(pos));
+        }
     }
     
     drawTrail() {
+        let n;
+        let revolution = this.length + this.index - 1;
         this.previous.set(this.position);
-        for(let i = 0; i < this.trail.length; i++) {
-            this.strength = (this.trail.length - i + 5) / this.trail.length;
-            this.current.set(this.trail[i]);
+        for(let i = 0; i < this.length; i++) {
+            n = (revolution - i) % this.length;
+            this.strength = (this.length - i) / this.length;
+            this.current.set(this.trail[n]);
             line3D(this.previous, this.current, RGBA(80, 80, 255, this.strength), this.width * this.strength);
             this.previous.set(this.current);
         }
     }
 
-    addTrail() {
-        let v = new p5.Vector();
-        v.set(this.position);
-        this.trail.unshift(v);
-        if (this.trail.length > TRAIL_LENGTH) {
-            this.trail.pop();
-        }
+    addSegment() {
+        this.trail[this.index].set(this.position);
+        this.index = (this.index + 1) % this.length;
     }
 
     updateTrail() {
-        this.addTrail();
+        this.addSegment();
         this.drawTrail();
     }
 }
 
-// this class describes the properties of a single particle.
+
 class Particle {
     static id_count;
     // setting the co-ordinates, radius and the
     // speed of a particle in both the co-ordinates axes.
-    constructor(pos, vel, color, r = weightedRandom(1, 25)) {
+    constructor(pos, vel, color, r) {
         this.position       = pos;
         this.velocity       = vel;
         this.acceleration   = new p5.Vector();
@@ -91,7 +101,6 @@ class Particle {
         this.trail          = new Trail(this.position, this.radius / 2);
     }
     
-    // creation of a particle.
     drawParticle() {
         push();
         noStroke();
@@ -101,13 +110,12 @@ class Particle {
         pop();
     }
     
-    update(nr) {
+    update() {
         this.moveParticle();
         this.drawParticle();
         this.trail.updateTrail();
     }
     
-    // setting the particle in motion.
     moveParticle() {
         // Bounce of walls 
         if(Math.abs(this.position.x) >= MAX_DISTANCE)
@@ -116,6 +124,7 @@ class Particle {
             this.velocity.y *= -1;
         if(Math.abs(this.position.z) >= MAX_DISTANCE)
             this.velocity.z *= -1;
+        
         // Move according to speed
         this.acceleration = new p5.Vector.div(this.force, this.mass);
         this.velocity.add(this.acceleration);
@@ -149,46 +158,46 @@ class starParticle extends Particle {
         super(pos, vel, color, r);
     }
     
-    update(nr) {
+    update() {
         super.moveParticle();
         super.drawParticle();
     }
-
 }
 
 class Constellation {
-    constructor(){
+    constructor(n){
+        this.num_particles = n;
         this.particles  = [];
-        this.updates    = 0;
     }
     
     addParticles() {
-        for(let i = 0; i < N_PARTICLES; i++){
+        for(let i = 0; i < this.num_particles; i++){
+            var rad = weightedRandom(MIN_PLANET_RAD, MAX_PLANET_RAD)
             var r = Math.round(random(120, 220));
             var g = Math.round(random(140, 190));
             var b = Math.round(random(140, 190));
             var pos = this.createRandomVector(SPN_DIST);
-            var vel = new p5.Vector(random(-0.8, 0.8), random(-0.8, 0.8), random(-0.8, 0.8));
+            var vel = this.createRandomVector(START_SPEED);
             var color = RGBA(r, g, b, 1);
-            this.particles.push(new Particle(pos, vel, color));
+            this.particles.push(new Particle(pos, vel, color, rad));
         }
     }
     
-    addCenterParticle(){
-        var pos = this.createRandomVector(SPN_DIST / 2);
+    addCenterParticle() {
+        var pos = this.createRandomVector(SPN_DIST / 10);
         var vel = new p5.Vector();
-        var color = RGBA(255, 240, 180, 1);
+        var color = RGBA(255, 255, 230, 1);
         var radius = 50;
         this.particles.push(new starParticle(pos, vel, color, radius));
     }
     
     updateParticles() {
-        this.updates++;
-        for(let i = 0; i < this.particles.length; i++) {
+        let length = this.particles.length;
+        for(let i = 0; i < length; i++) {
            this.particles[i].applyForce(this.particles);
         }
-        for(let i = 0; i < this.particles.length; i++) {
-          this.particles[i].update(this.updates);
+        for(let i = 0; i < length; i++) {
+          this.particles[i].update();
         }
     }
     
@@ -200,15 +209,15 @@ class Constellation {
     }
 }
 
-// an array to add multiple particles
-const constellation = new Constellation();
+// --- Variables
+const constellation = new Constellation(N_PARTICLES);
 let panvalue = 1;
 let prevpan = 1;
 let tiltvalue = 1;
 let prevtilt = 1;
 let updateCam = false;
 let cam;
-let pos = -500;
+let pos = CAM_START_POS;
 let x;
 let y;
 
@@ -256,10 +265,24 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
+function updateKeyboard() {
+    if (keyIsDown(65)){
+       x += 5;
+     }
+     if (keyIsDown(68)){
+       x -= 5;
+     }
+     if (keyIsDown(87)){
+       y += 5;
+     }
+     if (keyIsDown(83)){
+       y -= 5;
+     } 
+ }
+
 function setup() {
   colorMode(RGB);
   frameRate(30);
-  let interval = 1 / frameRate();
   const renderer = createCanvas(windowWidth, windowHeight, WEBGL);
   renderer.canvas.style.display = 'block';
   cam = createCamera();
@@ -267,21 +290,6 @@ function setup() {
   constellation.addCenterParticle();
   x = -width/2;
   y = -height/2;
-}
-
-function updateKeyboard() {
-   if (keyIsDown(65)){
-      x += 5;
-    }
-    if (keyIsDown(68)){
-      x -= 5;
-    }
-    if (keyIsDown(87)){
-      y += 5;
-    }
-    if (keyIsDown(83)){
-      y -= 5;
-    } 
 }
 
 function draw() {
