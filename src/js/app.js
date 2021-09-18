@@ -6,7 +6,7 @@
  */
 
 function RGBA(r, g, b, a) {
-    var str = 'rgba(';
+    let str = 'rgba(';
     str += r + ', ';
     str += g + ', ';
     str += b + ', ';
@@ -24,21 +24,20 @@ const FORCE_DIST = 5000.0;
 const SPN_DIST = 2000.0;
 const CON_DIST = 500.0;
 const G = 0.0667;
-const PI = 3.14159
-const FOURTHIRDS = 1.3333;
-const SPHERE_RATIO = FOURTHIRDS * PI; 
-
+const FOURTHIRDS = 4/3;
+const SPHERE_RATIO = FOURTHIRDS * Math.PI; 
+const TRAIL_LENGTH = 20;
 
 // this class describes the properties of a single particle.
 class Particle {
     static id_count;
     // setting the co-ordinates, radius and the
     // speed of a particle in both the co-ordinates axes.
-    constructor(pos, vel, color, r = weightedRandom(1, 25)){
+    constructor(pos, vel, color, r = weightedRandom(1, 25)) {
         this.position       = pos;
         this.velocity       = vel;
-        this.acceleration   = new p5.Vector(0, 0, 0);
-        this.force          = new p5.Vector(0, 0, 0);
+        this.acceleration   = new p5.Vector();
+        this.force          = new p5.Vector();
         this.radius         = r;
         this.mass           = SPHERE_RATIO * r * r * r;
         this.id             = this.id_count++;
@@ -53,23 +52,45 @@ class Particle {
         noStroke();
         fill(this.color);
         translate(this.position.x, this.position.y, this.position.z);
-        sphere( this.radius);
+        sphere(this.radius);
         pop();
     }
     
-    printData() {
-        fill(RGBA(255,255,255,1));
-        textSize(6);
-        text('mass: ' + this.mass + '\nrad: ' + this.radius + '\nvel: ' + round(this.velocity) + '\nfor: ' + this.force);
-    }
-    
-    drawForce() {
-        fill(RGBA(80,80,255,1));
-        strokeWeight(1);
-        stroke(RGBA(250, 80, 240, this.force.mag()));
-        line(this.position.x, this.position.y, this.position.z, (this.position.x + 5 * this.force.x), (this.position.y + 5 * this.force.y), (this.position.z + 5 * this.force.z));
+    drawTrail() {
+        let prev = new p5.Vector();
+        let curr = new p5.Vector();
+        let strength;
+        prev.set(this.position);
+        for(let i = 0; i < this.trail.length; i++) {
+            strength = (this.trail.length - i) / this.trail.length;
+            curr.set(this.trail[i]);
+            this.line3D(prev, curr, RGBA(160, 160, 160, strength));
+            prev.set(curr);
+        }
     }
 
+    addTrail() {
+        let v = new p5.Vector();
+        v.set(this.position);
+        this.trail.unshift(v);
+        if (this.trail.length > TRAIL_LENGTH) {
+            this.trail.pop();
+        }
+    }
+    
+    line3D(vector1, vector2, color) {
+        strokeWeight(1);
+        stroke(color);
+        line(vector1.x, vector1.y, vector1.z, vector2.x, vector2.y, vector2.z);
+    }
+    
+    update() {
+        this.addTrail();
+        this.moveParticle();
+        this.drawParticle();
+        this.drawTrail();
+    }
+    
     // setting the particle in motion.
     moveParticle() {
         // Bounce of walls 
@@ -83,10 +104,9 @@ class Particle {
         this.acceleration = new p5.Vector.div(this.force, this.mass);
         this.velocity.add(this.acceleration);
         this.position.add(this.velocity);
-        //this.drawForce();
         this.force.set(0, 0, 0);
     }
-        
+    
     applyForce(particles) {
         particles.forEach(element => {
             // Skip self with self
@@ -94,7 +114,7 @@ class Particle {
             let dis = p5.Vector.dist(this.position, element.position);
             if(dis < FORCE_DIST) {
               if (dis < (this.radius + element.radius)) return;
-              let force = new p5.Vector(0, 0, 0);
+              let force = new p5.Vector();
               force.limit(10);
               force.add(this.position);
               force.sub(element.position);
@@ -137,13 +157,10 @@ class Constellation {
     
     addParticles() {
         for(let i = 0; i < N_PARTICLES; i++){
-            var x = random(-SPN_DIST, SPN_DIST);
-            var y = random(-SPN_DIST, SPN_DIST);
-            var z = random(-SPN_DIST, SPN_DIST);
             var r = Math.round(random(120, 140));
             var g = Math.round(random(120, 140));
             var b = Math.round(random(180, 255));
-            var pos = new p5.Vector(x, y, z);
+            var pos = this.createRandomVector(SPN_DIST);
             var vel = new p5.Vector(random(-0.8, 0.8), random(-0.8, 0.8), random(-0.8, 0.8));
             var color = RGBA(r, g, b, 1);
             this.particles.push(new Particle(pos, vel, color));
@@ -151,27 +168,32 @@ class Constellation {
     }
     
     addCenterParticle(){
-        var pos = new p5.Vector(windowWidth/2, windowHeight/2, 0);
-        var vel = new p5.Vector(0, 0, 0);
+        var pos = this.createRandomVector(SPN_DIST / 2);
+        var vel = new p5.Vector();
         var color = RGBA(255, 240, 180, 1);
         var radius = 50;
         this.particles.push(new starParticle(pos, vel, color, radius));
     }
     
-    updateParticles() {
+    updateParticles() {                      
         for(let i = 0; i < this.particles.length; i++) {
            this.particles[i].applyForce(this.particles);
         }
         for(let i = 0; i < this.particles.length; i++) {
-          this.particles[i].moveParticle();
-          this.particles[i].drawJoinParticles(this.particles.slice(i));
-          this.particles[i].drawParticle(); 
+          this.particles[i].update();
         }
+    }
+    
+    createRandomVector(range) {
+        let x = random(-range, range);
+        let y = random(-range, range);
+        let z = random(-range, range);
+        return new p5.Vector(x, y, z);
     }
 }
 
 // an array to add multiple particles
-let constellation = new Constellation();
+const constellation = new Constellation();
 let panvalue = 1;
 let prevpan = 1;
 let tiltvalue = 1;
@@ -230,7 +252,7 @@ function windowResized() {
 function setup() {
   frameRate(30);
   let interval = 1 / frameRate();
-  var renderer = createCanvas(windowWidth, windowHeight, WEBGL);
+  const renderer = createCanvas(windowWidth, windowHeight, WEBGL);
   renderer.canvas.style.display = 'block';
   cam = createCamera();
   constellation.addParticles();
