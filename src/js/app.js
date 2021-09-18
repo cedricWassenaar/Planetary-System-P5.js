@@ -4,6 +4,7 @@
  * @description Creates a simple constellation
  * Inspired by Particle.js by Sagar Arora.
  */
+p5.disableFriendlyErrors = true;
 
 function RGBA(r, g, b, a) {
     let str = 'rgba(';
@@ -27,6 +28,45 @@ const G = 0.0667;
 const FOURTHIRDS = 4/3;
 const SPHERE_RATIO = FOURTHIRDS * Math.PI; 
 const TRAIL_LENGTH = 20;
+const FPTRAIL = 20;
+
+
+function line3D(vector1, vector2, color, width) {
+    strokeWeight(width);
+    stroke(color);
+    line(vector1.x, vector1.y, vector1.z, vector2.x, vector2.y, vector2.z);
+}
+
+
+class Trail {
+    constructor(pos, width) {
+        this.position   = pos;
+        this.trail      = [];
+        this.previous   = new p5.Vector();
+        this.current    = new p5.Vector();
+        this.strength;
+        this.width      = width;
+    }
+    
+    drawTrail() {
+        this.previous.set(this.position);
+        for(let i = 0; i < this.trail.length; i++) {
+            this.strength = (this.trail.length - i) / this.trail.length;
+            this.current.set(this.trail[i]);
+            line3D(this.previous, this.current, RGBA(120, 120, 120, this.strength), this.width * this.strength);
+            this.previous.set(this.current);
+        }
+    }
+
+    addTrail() {
+        let v = new p5.Vector();
+        v.set(this.position);
+        this.trail.unshift(v);
+        if (this.trail.length > TRAIL_LENGTH) {
+            this.trail.pop();
+        }
+    }
+}
 
 // this class describes the properties of a single particle.
 class Particle {
@@ -41,9 +81,8 @@ class Particle {
         this.radius         = r;
         this.mass           = SPHERE_RATIO * r * r * r;
         this.id             = this.id_count++;
-        this.trail          = [];
         this.color          = color;
-        this.respawn        = false;
+        this.trail          = new Trail(this.position, this.radius);
     }
     
     // creation of a particle.
@@ -56,39 +95,13 @@ class Particle {
         pop();
     }
     
-    drawTrail() {
-        let prev = new p5.Vector();
-        let curr = new p5.Vector();
-        let strength;
-        prev.set(this.position);
-        for(let i = 0; i < this.trail.length; i++) {
-            strength = (this.trail.length - i) / this.trail.length;
-            curr.set(this.trail[i]);
-            this.line3D(prev, curr, RGBA(160, 160, 160, strength));
-            prev.set(curr);
+    update(nr) {
+        if (nr % FPTRAIL){
+            this.trail.addTrail();
         }
-    }
-
-    addTrail() {
-        let v = new p5.Vector();
-        v.set(this.position);
-        this.trail.unshift(v);
-        if (this.trail.length > TRAIL_LENGTH) {
-            this.trail.pop();
-        }
-    }
-    
-    line3D(vector1, vector2, color) {
-        strokeWeight(1);
-        stroke(color);
-        line(vector1.x, vector1.y, vector1.z, vector2.x, vector2.y, vector2.z);
-    }
-    
-    update() {
-        this.addTrail();
         this.moveParticle();
         this.drawParticle();
-        this.drawTrail();
+        this.trail.drawTrail();
     }
     
     // setting the particle in motion.
@@ -126,20 +139,6 @@ class Particle {
             }
         });
     }
-
-    // this function creates the connections(lines)
-    // between particles which are less than a certain distance apart
-    drawJoinParticles(particles) {
-        particles.forEach(element =>{
-            let dis = p5.Vector.dist(this.position, element.position);
-            if (dis > CON_DIST) return;
-            let connection = CON_DIST - Math.abs(dis);
-            fill(RGBA(80,255,255,1));
-            strokeWeight(connection / CON_DIST);
-            stroke(RGBA(150, 80, 240, (connection / CON_DIST)));
-            line(this.position.x, this.position.y, this.position.z, element.position.x, element.position.y, element.position.z);
-        });
-    }
 }
 
 
@@ -147,19 +146,25 @@ class starParticle extends Particle {
     constructor(pos, vel, color, r){
         super(pos, vel, color, r);
     }
+    
+    update(nr) {
+        super.moveParticle();
+        super.drawParticle();
+    }
 
 }
 
 class Constellation {
     constructor(){
-        this.particles = [];
+        this.particles  = [];
+        this.updates    = 0;
     }
     
     addParticles() {
         for(let i = 0; i < N_PARTICLES; i++){
-            var r = Math.round(random(120, 140));
-            var g = Math.round(random(120, 140));
-            var b = Math.round(random(180, 255));
+            var r = Math.round(random(120, 220));
+            var g = Math.round(random(140, 190));
+            var b = Math.round(random(140, 190));
             var pos = this.createRandomVector(SPN_DIST);
             var vel = new p5.Vector(random(-0.8, 0.8), random(-0.8, 0.8), random(-0.8, 0.8));
             var color = RGBA(r, g, b, 1);
@@ -175,12 +180,13 @@ class Constellation {
         this.particles.push(new starParticle(pos, vel, color, radius));
     }
     
-    updateParticles() {                      
+    updateParticles() {
+        this.updates++;
         for(let i = 0; i < this.particles.length; i++) {
            this.particles[i].applyForce(this.particles);
         }
         for(let i = 0; i < this.particles.length; i++) {
-          this.particles[i].update();
+          this.particles[i].update(this.updates);
         }
     }
     
@@ -241,7 +247,6 @@ function mouseReleased() {
 }
 
 function mouseWheel(event) {
-  print(event.delta);
   pos += event.delta;
 }
 
