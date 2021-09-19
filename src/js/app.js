@@ -16,10 +16,10 @@ const FOURTHIRDS    = 4/3;
 const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
 const TRAIL_LENGTH  = 10;
 const START_SPEED   = 5.0;
-const MIN_PLANET_RAD = 1;
-const MAX_PLANET_RAD = 10;
+const MIN_PLANET_RAD = 3;
+const MAX_PLANET_RAD = 20;
 const CAM_START_POS = -3000;
-
+const SPHERE_SEGS   = 16;
 
 // --- Functions --- 
 function RGBA(r, g, b, a) {
@@ -38,23 +38,31 @@ function weightedRandom(min, max) {
 function line3D(vector1, vector2, color, width) {
     strokeWeight(width);
     stroke(color);
-    line(vector1.x, vector1.y, vector1.z, vector2.x, vector2.y, vector2.z);
+    beginShape(LINES);
+    vertex(vector1.x, vector1.y, vector1.z);
+    vertex(vector2.x, vector2.y, vector2.z);
+    endShape();
 }
 
 
 // --- Classes --- 
 class Trail {
     constructor(pos, width) {
+        this.updates    = 0;
         this.position   = pos;
         this.width      = width;
         this.trail      = [];
         this.previous   = new p5.Vector();
         this.current    = new p5.Vector();
-        this.strength;
         this.index      = 0;
         this.length     = TRAIL_LENGTH;
+        this.colors     = [];
+        this.widths     = [];
         for(let i = 0; i < this.length; i++) {
             this.trail.push(new p5.Vector().set(pos));
+            let strength = ((this.length - i) / this.length) + 0.2;
+            this.widths.push(this.width * strength);
+            this.colors.push(RGBA(80, 80, 255, strength));
         }
     }
     
@@ -64,9 +72,8 @@ class Trail {
         this.previous.set(this.position);
         for(let i = 0; i < this.length; i++) {
             n = (revolution - i) % this.length;
-            this.strength = (this.length - i) / this.length;
             this.current.set(this.trail[n]);
-            line3D(this.previous, this.current, RGBA(80, 80, 255, this.strength), this.width * this.strength);
+            line3D(this.previous, this.current, this.colors[i], this.widths[i]);
             this.previous.set(this.current);
         }
     }
@@ -77,7 +84,9 @@ class Trail {
     }
 
     updateTrail() {
-        this.addSegment();
+        if (p5.Vector.dist(this.previous, this.position) > this.width) {
+            this.addSegment();
+        }
         this.drawTrail();
     }
 }
@@ -106,7 +115,7 @@ class Particle {
         noStroke();
         fill(this.color);
         translate(this.position.x, this.position.y, this.position.z);
-        sphere(this.radius);
+        sphere(this.radius, SPHERE_SEGS, SPHERE_SEGS);
         pop();
     }
     
