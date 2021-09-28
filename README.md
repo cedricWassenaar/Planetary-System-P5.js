@@ -2,7 +2,7 @@
 
 Work in progress!
 
-![recording](/img/recording.GIF)
+![recording](/img/recording.gif)
 
 ## References
 
