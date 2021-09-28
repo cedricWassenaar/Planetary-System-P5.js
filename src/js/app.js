@@ -7,14 +7,15 @@ p5.disableFriendlyErrors = true;
 
 
 // --- Constants --- 
-const N_PARTICLES   = 100;
+const N_PARTICLES   = 50;
 const MAX_DISTANCE  = 10000;
 const FORCE_DIST    = 5000.0;
 const SPN_DIST      = 5000.0;
 const G             = 0.667;
 const FOURTHIRDS    = 4/3;
 const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
-const TRAIL_LENGTH  = 10;
+const TRAIL_LENGTH  = 20;
+const TRAIL_SPACING = 400;
 const START_SPEED   = 5.0;
 const MIN_PLANET_RAD = 3;
 const MAX_PLANET_RAD = 20;
@@ -36,12 +37,14 @@ function weightedRandom(min, max) {
 }
 
 function line3D(vector1, vector2, color, width) {
+    push();
     strokeWeight(width);
     stroke(color);
     beginShape(LINES);
     vertex(vector1.x, vector1.y, vector1.z);
     vertex(vector2.x, vector2.y, vector2.z);
     endShape();
+    pop();
 }
 
 
@@ -56,13 +59,14 @@ class Trail {
         this.current    = new p5.Vector();
         this.index      = 0;
         this.length     = TRAIL_LENGTH;
+        this.spacing    = TRAIL_SPACING;
         this.colors     = [];
         this.widths     = [];
         for(let i = 0; i < this.length; i++) {
             this.trail.push(new p5.Vector().set(pos));
             let strength = ((this.length - i) / this.length) + 0.2;
             this.widths.push(this.width * strength);
-            this.colors.push(RGBA(80, 80, 255, strength));
+            this.colors.push(RGBA(130, 140, 255, strength));
         }
     }
     
@@ -83,11 +87,15 @@ class Trail {
         this.index = (this.index + 1) % this.length;
     }
 
-    updateTrail() {
-        if (p5.Vector.dist(this.previous, this.position) > this.width) {
+    updateTrail(draw) {
+        let angle = Math.abs(this.previous.angleBetween(this.position));
+        let delta = p5.Vector.dist(this.previous, this.position);
+        if (angle > 1 || delta > this.spacing) {
             this.addSegment();
         }
-        this.drawTrail();
+        if (draw){
+            this.drawTrail();
+        }
     }
 }
 
@@ -119,13 +127,18 @@ class Particle {
         pop();
     }
     
-    update() {
+    update(seconds) {
         this.moveParticle();
         this.drawParticle();
-        this.trail.updateTrail();
+        if (this.acceleration.mag() > 0.1){
+            this.trail.updateTrail(true);
+        }
+        else{
+            this.trail.updateTrail(false);
+        }
     }
     
-    moveParticle() {
+    moveParticle(seconds) {
         // Bounce of walls 
         if(Math.abs(this.position.x) >= MAX_DISTANCE)
             this.velocity.x *= -1;
@@ -135,7 +148,7 @@ class Particle {
             this.velocity.z *= -1;
         
         // Move according to speed
-        this.acceleration = new p5.Vector.div(this.force, this.mass);
+        this.acceleration = new p5.Vector.div(this.force, this.mass).mult(seconds);
         this.velocity.add(this.acceleration);
         this.position.add(this.velocity);
         this.force.set(0, 0, 0);
@@ -167,8 +180,8 @@ class starParticle extends Particle {
         super(pos, vel, color, r);
     }
     
-    update() {
-        super.moveParticle();
+    update(seconds) {
+        super.moveParticle(seconds);
         super.drawParticle();
     }
 }
@@ -200,13 +213,13 @@ class Constellation {
         this.particles.push(new starParticle(pos, vel, color, radius));
     }
     
-    updateParticles() {
+    updateParticles(seconds) {
         let length = this.particles.length;
         for(let i = 0; i < length; i++) {
            this.particles[i].applyForce(this.particles);
         }
         for(let i = 0; i < length; i++) {
-          this.particles[i].update();
+          this.particles[i].update(seconds);
         }
     }
     
@@ -218,93 +231,131 @@ class Constellation {
     }
 }
 
-// --- Variables
-const constellation = new Constellation(N_PARTICLES);
-let panvalue = 1;
-let prevpan = 1;
-let tiltvalue = 1;
-let prevtilt = 1;
-let updateCam = false;
-let cam;
-let pos = CAM_START_POS;
-let x;
-let y;
 
+class userCamera {
+    constructor(w, h){
+        this.panvalue = 1;
+        this.prevpan = 1;
+        this.tiltvalue = 1;
+        this.prevtilt = 1;
+        this.PanTiltActive = false;
+        this.x = -w/2;
+        this.y = -h/2;
+        this.z = CAM_START_POS;
+        this.cam = createCamera();
+    }
 
-function updateMouse(){
-  if (updateCam){
-      var pan = (mouseX - width/2) / width/2;
-      var tilt = (mouseY - height/2) / height/2;
-      if (Math.abs(pan) > 0.05){
-          panvalue = pan;
-      }
-      else{
-          panvalue = 0;
-      }
-      if (Math.abs(tilt) > 0.05){
-          tiltvalue = tilt;
-      }
-      else{
-          tiltvalue = 0;
-      }
-      if (panvalue != prevpan){   
-        prevpan = panvalue;
-      }
-      if (tiltvalue != prevtilt){  
-        prevtilt = tiltvalue;
-      }
-      cam.pan(-panvalue * 0.05);
-      cam.tilt(tiltvalue * 0.05);
-  }
+    updatePanTilt(pan, tilt) {
+        if (this.PanTiltActive === false){
+            return;
+        }
+
+        if (Math.abs(pan) > 0.05){
+            this.panvalue = pan;
+        }
+        else{
+            this.panvalue = 0;
+        }
+        if (Math.abs(tilt) > 0.05){
+            this.tiltvalue = tilt;
+        }
+        else{
+            this.tiltvalue = 0;
+        }
+        if (this.panvalue != this.prevpan){   
+            this.prevpan = this.panvalue;
+        }
+        if (this.tiltvalue != this.prevtilt){  
+            this.prevtilt = this.tiltvalue;
+        }
+        this.cam.pan(-this.panvalue * 0.05);
+        this.cam.tilt(this.tiltvalue * 0.05);
+    }
+
+    updatePosX(amount) {
+        this.x += amount;
+    }
+
+    updatePosY(amount) {
+        this.y += amount;
+    }
+    
+    updatePosZ(amount) {
+        this.z += amount;
+    }
+
+    updateCamera() {
+        translate(this.x, this.y, this.z);
+    }
+
+    enablePanTilt() {
+        this.PanTiltActive = true;
+    }
+
+    disablePanTilt() {
+        this.PanTiltActive = false;
+    }
+}
+
+// --- Variables --- 
+let constellation;
+let userCam;
+
+// --- P5js functions --- 
+function updateMouse() {
+    var pan = (mouseX - width/2) / width/2;
+    var tilt = (mouseY - height/2) / height/2;
+    userCam.updatePanTilt(pan, tilt);
 }
 
 function mousePressed() {
-    updateCam = true;
+    userCam.enablePanTilt()
 }
 
 function mouseReleased() {
-    updateCam = false;
+    userCam.disablePanTilt()
 }
 
 function mouseWheel(event) {
-  pos += event.delta;
+    userCam.updatePosZ(event.delta);
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+    resizeCanvas(windowWidth, windowHeight);
 }
 
 function updateKeyboard() {
     if (keyIsDown(65)){
-       x += 5;
-     }
-     if (keyIsDown(68)){
-       x -= 5;
-     }
-     if (keyIsDown(87)){
-       y += 5;
-     }
-     if (keyIsDown(83)){
-       y -= 5;
-     } 
+        userCam.updatePosX(5);
+    }
+    if (keyIsDown(68)){
+        userCam.updatePosX(-5);
+    }
+    if (keyIsDown(87)){
+        userCam.updatePosY(5);
+    }
+    if (keyIsDown(83)){
+        userCam.updatePosY(-5);
+    }
  }
 
 function setup() {
   colorMode(RGB);
-  frameRate(30);
+  frameRate(60);
   const renderer = createCanvas(windowWidth, windowHeight, WEBGL);
   renderer.canvas.style.display = 'block';
-  cam = createCamera();
+  userCam = new userCamera(width, height);
+  constellation = new Constellation(N_PARTICLES);
   constellation.addParticles();
   constellation.addCenterParticle();
-  x = -width/2;
-  y = -height/2;
 }
 
 function draw() {
+    let fps = frameRate()
+    let sec = 1.0 / Math.max(fps, 1.0);
     updateKeyboard();
     updateMouse();
-    translate(x, y, pos);
+    userCam.updateCamera();
     background('#020202');
-    constellation.updateParticles();
+    constellation.updateParticles(sec);
 }
