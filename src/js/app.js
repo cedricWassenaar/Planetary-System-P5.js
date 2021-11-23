@@ -11,7 +11,7 @@ const N_PARTICLES   = 50;
 const MAX_DISTANCE  = 10000;
 const FORCE_DIST    = 5000.0;
 const SPN_DIST      = 5000.0;
-const G             = 0.667;
+const G             = 6.67;
 const FOURTHIRDS    = 4/3;
 const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
 const TRAIL_LENGTH  = 20;
@@ -128,7 +128,7 @@ class Particle {
     }
     
     update(seconds) {
-        this.moveParticle();
+        this.moveParticle(seconds);
         this.drawParticle();
         if (this.acceleration.mag() > 0.1){
             this.trail.updateTrail(true);
