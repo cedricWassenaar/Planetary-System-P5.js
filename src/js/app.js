@@ -241,8 +241,8 @@ class userCamera {
         this.tiltvalue = 1;
         this.prevtilt = 1;
         this.PanTiltActive = false;
-        this.x = -w/2;
-        this.y = -h/2;
+        this.x = 0;
+        this.y = 0;
         this.z = CAM_START_POS;
         this.cam = createCamera();
     }
