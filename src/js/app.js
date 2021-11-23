@@ -21,6 +21,8 @@ const MIN_PLANET_RAD = 3;
 const MAX_PLANET_RAD = 20;
 const CAM_START_POS = -3000;
 const SPHERE_SEGS   = 16;
+const PAN_SPEED     = 0.05;
+
 
 // --- Functions --- 
 function RGBA(r, g, b, a) {
@@ -250,13 +252,13 @@ class userCamera {
             return;
         }
 
-        if (Math.abs(pan) > 0.05){
+        if (Math.abs(pan) > PAN_SPEED){
             this.panvalue = pan;
         }
         else{
             this.panvalue = 0;
         }
-        if (Math.abs(tilt) > 0.05){
+        if (Math.abs(tilt) > PAN_SPEED){
             this.tiltvalue = tilt;
         }
         else{
@@ -268,8 +270,8 @@ class userCamera {
         if (this.tiltvalue != this.prevtilt){  
             this.prevtilt = this.tiltvalue;
         }
-        this.cam.pan(-this.panvalue * 0.05);
-        this.cam.tilt(this.tiltvalue * 0.05);
+        this.cam.pan(-this.panvalue * PAN_SPEED);
+        this.cam.tilt(this.tiltvalue * PAN_SPEED);
     }
 
     updatePosX(amount) {
