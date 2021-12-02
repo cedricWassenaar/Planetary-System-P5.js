@@ -7,7 +7,7 @@ p5.disableFriendlyErrors = true;
 
 
 // --- Constants --- 
-const N_PARTICLES   = 50;
+const N_PARTICLES   = 70;
 const MAX_DISTANCE  = 10000;
 const FORCE_DIST    = 5000.0;
 const SPN_DIST      = 5000.0;
@@ -15,10 +15,10 @@ const G             = 6.67;
 const FOURTHIRDS    = 4/3;
 const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
 const TRAIL_LENGTH  = 20;
-const TRAIL_SPACING = 400;
+const TRAIL_SPACING = 300;
 const START_SPEED   = 5.0;
 const MIN_PLANET_RAD = 3;
-const MAX_PLANET_RAD = 20;
+const MAX_PLANET_RAD = 30;
 const CAM_START_POS = -3000;
 const SPHERE_SEGS   = 16;
 const PAN_SPEED     = 0.05;
@@ -50,7 +50,7 @@ function line3D(vector1, vector2, color, width) {
 
 // --- Classes --- 
 class Trail {
-    constructor(pos, width) {
+    constructor(pos, width, color) {
         this.updates    = 0;
         this.position   = pos;
         this.width      = width;
@@ -62,11 +62,12 @@ class Trail {
         this.spacing    = TRAIL_SPACING;
         this.colors     = [];
         this.widths     = [];
+        this.color      = color
         for(let i = 0; i < this.length; i++) {
             this.trail.push(new p5.Vector().set(pos));
             let strength = ((this.length - i) / this.length) + 0.2;
             this.widths.push(this.width * strength);
-            this.colors.push(RGBA(130, 140, 255, strength));
+            this.colors.push(color.replace(/[^,]+(?=\))/, strength));
         }
     }
     
@@ -90,11 +91,7 @@ class Trail {
     }
 
     updateTrail(draw) {
-        let angle = Math.abs(this.previous.angleBetween(this.position));
-        let delta = p5.Vector.dist(this.previous, this.position);
-        if (angle > 1 || delta > this.spacing) {
-            this.addSegment();
-        }
+        this.addSegment();
         if (draw){
             this.drawTrail();
         }
@@ -117,7 +114,7 @@ class Particle {
         this.mass           = SPHERE_RATIO * r * r * r;
         this.id             = this.id_count++;
         this.color          = color;
-        this.trail          = new Trail(this.position, this.radius / 2);
+        this.trail          = new Trail(this.position, this.radius / 2, this.color);
     }
     
     drawParticle() {
@@ -132,7 +129,7 @@ class Particle {
     update(seconds) {
         this.moveParticle(seconds);
         this.drawParticle();
-        if (this.acceleration.mag() > 0.1){
+        if (this.acceleration.mag() > 0.05){
             this.trail.updateTrail(true);
         }
         else{
@@ -199,9 +196,9 @@ class Constellation {
     addParticles() {
         for(let i = 0; i < this.num_particles; i++){
             var rad = weightedRandom(MIN_PLANET_RAD, MAX_PLANET_RAD)
-            var r = Math.round(random(120, 220));
-            var g = Math.round(random(140, 190));
-            var b = Math.round(random(140, 190));
+            var r = Math.round(random(120, 250));
+            var g = Math.round(random(120, 250));
+            var b = Math.round(random(120, 250));
             var pos = this.createRandomVector(SPN_DIST);
             var vel = this.createRandomVector(START_SPEED);
             var color = RGBA(r, g, b, 1);
