@@ -39,14 +39,12 @@ function weightedRandom(min, max) {
 }
 
 function line3D(vector1, vector2, color, width) {
-    push();
     strokeWeight(width);
     stroke(color);
     beginShape(LINES);
     vertex(vector1.x, vector1.y, vector1.z);
     vertex(vector2.x, vector2.y, vector2.z);
     endShape();
-    pop();
 }
 
 
@@ -76,12 +74,14 @@ class Trail {
         let n;
         let revolution = this.length + this.index - 1;
         this.previous.set(this.position);
+        push()
         for(let i = 0; i < this.length; i++) {
             n = (revolution - i) % this.length;
             this.current.set(this.trail[n]);
             line3D(this.previous, this.current, this.colors[i], this.widths[i]);
             this.previous.set(this.current);
         }
+        pop()
     }
 
     addSegment() {
@@ -184,7 +184,9 @@ class starParticle extends Particle {
     
     update(seconds) {
         super.moveParticle(seconds);
+        push()
         super.drawParticle();
+        pop()
     }
 }
 
@@ -343,7 +345,7 @@ function updateKeyboard() {
 
 function setup() {
   colorMode(RGB);
-  frameRate(60);
+  frameRate(30);
   const renderer = createCanvas(windowWidth, windowHeight, WEBGL);
   renderer.canvas.style.display = 'block';
   userCam = new userCamera(width, height);
@@ -359,5 +361,7 @@ function draw() {
     updateMouse();
     userCam.updateCamera();
     background('#020202');
+    push()
     constellation.updateParticles(sec);
+    pop()
 }
