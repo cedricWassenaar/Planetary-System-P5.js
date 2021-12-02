@@ -243,26 +243,18 @@ class userCamera {
         this.x = 0;
         this.y = 0;
         this.z = CAM_START_POS;
+        this.startX = 0;
+        this.startY = 0;
         this.cam = createCamera();
     }
 
-    updatePanTilt(pan, tilt) {
-        if (this.PanTiltActive === false){
-            return;
-        }
+    updatePanTilt(x, y) {
+        if (this.PanTiltActive === false) return;
+        var pan = (x - this.startX) / this.startX;
+        var tilt = (y - this.startY) / this.startY;
+        this.panvalue = pan * (Math.abs(pan) > PAN_SPEED);
+        this.tiltvalue = tilt * (Math.abs(tilt) > PAN_SPEED);
 
-        if (Math.abs(pan) > PAN_SPEED){
-            this.panvalue = pan;
-        }
-        else{
-            this.panvalue = 0;
-        }
-        if (Math.abs(tilt) > PAN_SPEED){
-            this.tiltvalue = tilt;
-        }
-        else{
-            this.tiltvalue = 0;
-        }
         if (this.panvalue != this.prevpan){   
             this.prevpan = this.panvalue;
         }
@@ -289,7 +281,9 @@ class userCamera {
         translate(this.x, this.y, this.z);
     }
 
-    enablePanTilt() {
+    enablePanTilt(x, y) {
+        this.startX = x;
+        this.startY = y;
         this.PanTiltActive = true;
     }
 
@@ -304,13 +298,11 @@ let userCam;
 
 // --- P5js functions --- 
 function updateMouse() {
-    var pan = (mouseX - width/2) / width/2;
-    var tilt = (mouseY - height/2) / height/2;
-    userCam.updatePanTilt(pan, tilt);
+    userCam.updatePanTilt(mouseX, mouseY);
 }
 
 function mousePressed() {
-    userCam.enablePanTilt()
+    userCam.enablePanTilt(mouseX, mouseY)
 }
 
 function mouseReleased() {
@@ -326,16 +318,16 @@ function windowResized() {
 }
 
 function updateKeyboard() {
-    if (keyIsDown(65)){
+    if (keyIsDown(65) || keyIsDown(LEFT_ARROW)){
         userCam.updatePosX(5);
     }
-    if (keyIsDown(68)){
+    if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)){
         userCam.updatePosX(-5);
     }
-    if (keyIsDown(87)){
+    if (keyIsDown(87) || keyIsDown(UP_ARROW)){
         userCam.updatePosY(5);
     }
-    if (keyIsDown(83)){
+    if (keyIsDown(83) || keyIsDown(DOWN_ARROW)){
         userCam.updatePosY(-5);
     }
  }
