@@ -7,19 +7,19 @@ p5.disableFriendlyErrors = true;
 
 
 // --- Constants --- 
-const N_PARTICLES   = 70;
-const MAX_DISTANCE  = 10000;
-const FORCE_DIST    = 5000.0;
-const SPN_DIST      = 5000.0;
+const N_PARTICLES   = 40;
+const MAX_DISTANCE  = 30000;
+const FORCE_DIST    = 8000.0;
+const SPN_DIST      = 8000.0;
 const G             = 6.67;
 const FOURTHIRDS    = 4/3;
 const SPHERE_RATIO  = FOURTHIRDS * Math.PI; 
-const TRAIL_LENGTH  = 20;
+const TRAIL_LENGTH  = 70;
 const TRAIL_SPACING = 300;
 const START_SPEED   = 5.0;
-const MIN_PLANET_RAD = 3;
-const MAX_PLANET_RAD = 30;
-const CAM_START_POS = -3000;
+const MIN_PLANET_RAD = 3.0;
+const MAX_PLANET_RAD = 20.0;
+const CAM_START_POS = 4500;
 const SPHERE_SEGS   = 16;
 const PAN_SPEED     = 0.05;
 
@@ -32,6 +32,13 @@ function RGBA(r, g, b, a) {
     str += b + ',';
     str += a + ')';
     return str;
+}
+
+function randomColor(min, max) {
+    var r = Math.round(random(min, max));
+    var g = Math.round(random(min, max));
+    var b = Math.round(random(min, max));
+    return RGBA(r, g, b, 1);
 }
 
 function weightedRandom(min, max) {
@@ -55,8 +62,8 @@ class Trail {
         this.position   = pos;
         this.width      = width;
         this.trail      = [];
-        this.previous   = new p5.Vector();
-        this.current    = new p5.Vector();
+        this.previous   = createVector();
+        this.current    = createVector();
         this.index      = 0;
         this.length     = TRAIL_LENGTH;
         this.spacing    = TRAIL_SPACING;
@@ -64,7 +71,7 @@ class Trail {
         this.widths     = [];
         this.color      = color
         for(let i = 0; i < this.length; i++) {
-            this.trail.push(new p5.Vector().set(pos));
+            this.trail.push(createVector().set(pos));
             let strength = ((this.length - i) / this.length) + 0.2;
             this.widths.push(this.width * strength);
             this.colors.push(color.replace(/[^,]+(?=\))/, strength));
@@ -106,12 +113,12 @@ class Particle {
     constructor(pos, vel, color, r) {
         this.position       = pos;
         this.velocity       = vel;
-        this.acceleration   = new p5.Vector();
-        this.force          = new p5.Vector();
-        this.forceTemp      = new p5.Vector();
-        this.forceTemp.limit(10);
+        this.acceleration   = createVector();
+        this.force          = createVector();
+        this.forceTemp      = createVector();
+        this.forceTemp.limit(30);
         this.radius         = r;
-        this.mass           = SPHERE_RATIO * r * r * r;
+        this.mass           = 10 * SPHERE_RATIO * r * r * r;
         this.id             = this.id_count++;
         this.color          = color;
         this.trail          = new Trail(this.position, this.radius / 2, this.color);
@@ -196,19 +203,16 @@ class Constellation {
     addParticles() {
         for(let i = 0; i < this.num_particles; i++){
             var rad = weightedRandom(MIN_PLANET_RAD, MAX_PLANET_RAD)
-            var r = Math.round(random(120, 250));
-            var g = Math.round(random(120, 250));
-            var b = Math.round(random(120, 250));
             var pos = this.createRandomVector(SPN_DIST);
             var vel = this.createRandomVector(START_SPEED);
-            var color = RGBA(r, g, b, 1);
+            var color = randomColor(100, 250);
             this.particles.push(new Particle(pos, vel, color, rad));
         }
     }
     
     addCenterParticle() {
         var pos = this.createRandomVector(SPN_DIST / 10);
-        var vel = new p5.Vector();
+        var vel = createVector();
         var color = RGBA(255, 255, 230, 1);
         var radius = 50;
         this.particles.push(new starParticle(pos, vel, color, radius));
@@ -228,7 +232,7 @@ class Constellation {
         let x = random(-range, range);
         let y = random(-range, range);
         let z = random(-range, range);
-        return new p5.Vector(x, y, z);
+        return createVector(x, y, z);
     }
 }
 
@@ -240,9 +244,8 @@ class userCamera {
         this.tiltvalue = 1;
         this.prevtilt = 1;
         this.PanTiltActive = false;
-        this.x = 0;
-        this.y = 0;
-        this.z = CAM_START_POS;
+        this.pos = createVector(0, 0, CAM_START_POS);
+        this.mousePos = createVector(0, 0, 0);
         this.startX = 0;
         this.startY = 0;
         this.cam = createCamera();
@@ -250,35 +253,29 @@ class userCamera {
 
     updatePanTilt(x, y) {
         if (this.PanTiltActive === false) return;
-        var pan = (x - this.startX) / this.startX;
-        var tilt = (y - this.startY) / this.startY;
+        var pan = (this.startX - x) / this.startX;
+        var tilt = (this.startY - y) / this.startY;
         this.panvalue = pan * (Math.abs(pan) > PAN_SPEED);
         this.tiltvalue = tilt * (Math.abs(tilt) > PAN_SPEED);
-
-        if (this.panvalue != this.prevpan){   
-            this.prevpan = this.panvalue;
-        }
-        if (this.tiltvalue != this.prevtilt){  
-            this.prevtilt = this.tiltvalue;
-        }
         this.cam.pan(-this.panvalue * PAN_SPEED);
         this.cam.tilt(this.tiltvalue * PAN_SPEED);
     }
 
     updatePosX(amount) {
-        this.x += amount;
+        this.pos.x = -amount;
     }
 
     updatePosY(amount) {
-        this.y += amount;
+        this.pos.y = -amount;
     }
     
     updatePosZ(amount) {
-        this.z += amount;
+        this.pos.z = amount;
     }
 
     updateCamera() {
-        translate(this.x, this.y, this.z);
+        this.cam.move(this.pos.x, this.pos.y, this.pos.z);
+        this.pos.set(0, 0, 0);
     }
 
     enablePanTilt(x, y) {
@@ -310,7 +307,7 @@ function mouseReleased() {
 }
 
 function mouseWheel(event) {
-    userCam.updatePosZ(event.delta);
+    userCam.updatePosZ(event.delta * 3);
 }
 
 function windowResized() {
@@ -319,16 +316,16 @@ function windowResized() {
 
 function updateKeyboard() {
     if (keyIsDown(65) || keyIsDown(LEFT_ARROW)){
-        userCam.updatePosX(5);
+        userCam.updatePosX(10);
     }
     if (keyIsDown(68) || keyIsDown(RIGHT_ARROW)){
-        userCam.updatePosX(-5);
+        userCam.updatePosX(-10);
     }
     if (keyIsDown(87) || keyIsDown(UP_ARROW)){
-        userCam.updatePosY(5);
+        userCam.updatePosY(10);
     }
     if (keyIsDown(83) || keyIsDown(DOWN_ARROW)){
-        userCam.updatePosY(-5);
+        userCam.updatePosY(-10);
     }
  }
 
